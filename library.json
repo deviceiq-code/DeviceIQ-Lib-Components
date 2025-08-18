@@ -22,10 +22,7 @@
         "milesburton/DallasTemperature": "^3.11.0",
         "mathertel/PCF8574": "^2.1.0",
         "adafruit/DHT sensor library": "^1.4.4",
-        "deviceiq-code/DeviceIQ-Lib-DateTime": {
-            "type": "git",
-            "url": "https://github.com/deviceiq-code/DeviceIQ-Lib-DateTime.git"
-        }
+        "deviceiq-code/DeviceIQ-Lib-DateTime": "https://github.com/deviceiq-code/DeviceIQ-Lib-DateTime.git"
     },
     "frameworks": "*",
     "platforms": "*",
