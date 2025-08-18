@@ -19,10 +19,12 @@ namespace DeviceIQ_Components {
     enum Classes { 
         CLASS_GENERIC,
         CLASS_RELAY,
+        CLASS_PIR,
         CLASS_BUTTON,
         CLASS_BLINDS,
         CLASS_THERMOMETER,
-        CLASS_CURRENTMETER
+        CLASS_CURRENTMETER,
+        CLASS_DOORBELL
     };
 
     enum Buses { 
@@ -66,10 +68,12 @@ namespace DeviceIQ_Components {
     static const std::map<String, Classes> AvailableComponentClasses = {
         {"Generic", CLASS_GENERIC},
         {"Relay", CLASS_RELAY},
+        {"PIR", CLASS_PIR},
         {"Button", CLASS_BUTTON},
         {"Blinds", CLASS_BLINDS},
         {"Thermometer", CLASS_THERMOMETER},
-        {"Currentmeter", CLASS_CURRENTMETER}
+        {"Currentmeter", CLASS_CURRENTMETER},
+        {"Doorbell", CLASS_DOORBELL}
     };
 
     static const std::map<String, Buses> AvailableComponentBuses = {
@@ -126,6 +130,24 @@ namespace DeviceIQ_Components {
             inline const bool State() { return (mType == RELAYTYPE_NORMALLYOPENED ? !mState : mState); }
             const bool State(bool newstate, bool savestate = true);
             inline bool operator==(Relay& rhs) { return (this == &rhs); }
+    };
+
+    class PIR : public Generic {
+        private:
+            bool mState;
+            bool mPrevState;
+            uint32_t mLastChangeMs = 0;
+            uint32_t mDebounceTimeMs = 200;
+            callback_t mMotionDetected, mMotionCleared, mChanged;
+        public:
+            PIR(String name, int16_t id, Buses bus, uint8_t address);
+            virtual ~PIR() {}
+
+            inline const Classes Class() override { return Classes::CLASS_PIR; }
+            inline bool State() { return mState; }
+            inline void DebounceTime(uint32_t ms) { mDebounceTimeMs = ms; }
+            
+            void Control() override;
     };
 
     class Button : public Generic {
@@ -259,6 +281,27 @@ namespace DeviceIQ_Components {
             inline void ThresholdDC(float v) { mThresholdDC = v; }
             inline float ThresholdAC() const { return mThresholdAC; }
             inline float ThresholdDC() const { return mThresholdDC; }
+    };
+
+    class Doorbell : public Button {
+        private:
+            uint8_t mBrightness = 100;
+            uint8_t mVolume = 100;
+            uint8_t mState = 0; // 0 idle, 1 ring, 2 double, 3 long
+            uint32_t mLastEventMs = 0;
+            uint32_t mTimeoutMs = 1000; // default 1s
+            callback_t mRing, mDoubleRing, mLongRing, mBrightnessChanged, mVolumeChanged;
+        public:
+            Doorbell(String name, int16_t id, Buses bus, uint8_t address);
+            virtual ~Doorbell() {}
+            inline const Classes Class() override { return CLASS_DOORBELL; }
+            inline uint8_t Brightness() { return mBrightness; }
+            inline void Brightness(uint8_t v) { v = constrain(v, 0, 100); if (v != mBrightness) { mBrightness = v; if (mBrightnessChanged) mBrightnessChanged(); } }
+            inline uint8_t Volume() { return mVolume; }
+            inline void Volume(uint8_t v) { v = constrain(v, 0, 100); if (v != mVolume) { mVolume = v; if (mVolumeChanged) mVolumeChanged(); } }
+            inline uint8_t State() { if (mState != 0 && (millis() - mLastEventMs) >= mTimeoutMs) mState = 0; return mState; }
+            inline void Timeout(uint32_t ms) { mTimeoutMs = ms; }
+            inline uint32_t Timeout() { return mTimeoutMs; }
     };
 
     class Collection {

@@ -38,6 +38,42 @@ const bool Relay::State(bool newstate, bool savestate) {
     return State();
 }
 
+PIR::PIR(String name, int16_t id, Buses bus, uint8_t address): Generic(name, id, bus, address), mState(false), mPrevState(false) {
+    Event.insert({
+        {"MotionDetected", [&](callback_t callback) { mMotionDetected = callback; }},
+        {"MotionCleared", [&](callback_t callback) { mMotionCleared = callback; }},
+        {"Changed", [&](callback_t callback) { mChanged = callback; }}
+    });
+
+    switch (mBus) {
+        case BUS_I2C:
+            // If there is an I2C version of PIR, would initialize here
+            break;
+        default:
+            pinMode(mAddress, INPUT);
+            break;
+    }
+
+    mState = digitalRead(mAddress);
+    mPrevState = mState;
+}
+
+void PIR::Control() {
+    bool currentState = digitalRead(mAddress);
+    uint32_t now = millis();
+
+    if (currentState != mPrevState && (now - mLastChangeMs) >= mDebounceTimeMs) {
+        mPrevState = currentState;
+        mLastChangeMs = now;
+        mState = currentState;
+
+        if (mChanged) mChanged();
+        if (mState && mMotionDetected) mMotionDetected();
+        if (!mState && mMotionCleared) mMotionCleared();
+    }
+}
+
+
 Button::Button(String name, int16_t id, Buses bus, uint8_t address) : Generic(name, id, bus, address) {
     Event.insert({
         {"Pressed",[&](callback_t callback){mPressed=callback;}},
@@ -306,6 +342,34 @@ void Currentmeter::CalibrateZero(uint16_t samples) {
     }
     if (n > 0) mZeroOffsetmV = (int)(acc / (int64_t)n);
     mAutoCalibrated = true;
+}
+
+Doorbell::Doorbell(String name, int16_t id, Buses bus, uint8_t address) : Button(name, id, bus, address) {
+    Event.insert({
+        {"Ring", [&](callback_t cb){ mRing = cb; }},
+        {"DoubleRing", [&](callback_t cb){ mDoubleRing = cb; }},
+        {"LongRing", [&](callback_t cb){ mLongRing = cb; }},
+        {"BrightnessChanged", [&](callback_t cb){ mBrightnessChanged = cb; }},
+        {"VolumeChanged", [&](callback_t cb){ mVolumeChanged = cb; }}
+    });
+
+    Event["Clicked"]([&] {
+        mState = 1;
+        mLastEventMs = millis();
+        if (mRing) mRing();
+    });
+
+    Event["DoubleClicked"]([&] {
+        mState = 2;
+        mLastEventMs = millis();
+        if (mDoubleRing) mDoubleRing();
+    });
+
+    Event["LongClicked"]([&] {
+        mState = 3;
+        mLastEventMs = millis();
+        if (mLongRing) mLongRing();
+    });
 }
 
 bool Collection::Add(Generic* new_component) {
