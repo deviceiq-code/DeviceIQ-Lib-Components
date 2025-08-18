@@ -28,7 +28,7 @@ const bool Relay::State(bool newstate, bool savestate) {
     if (newstate) { if (mSettingOn) mSettingOn(); } else { if (mSettingOff) mSettingOff(); }
 
     switch (mBus) {
-        case BUS_I2C: { pcf8574->write(mAddress, mState); } break;
+        case BUS_I2C: { pcf8574->digitalWrite(mAddress, mState); } break;
         default: { digitalWrite(mAddress, mState); } break;
     }
 
@@ -105,7 +105,7 @@ void Button::Control() {
 
     switch (mBus) {
         case BUS_I2C: {
-            mState = pcf8574->readButton(mAddress);
+            mState = pcf8574->digitalRead(mAddress);
         } break;
         default: {
             mState = digitalRead(mAddress);
