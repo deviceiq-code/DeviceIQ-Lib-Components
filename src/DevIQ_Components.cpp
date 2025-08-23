@@ -74,7 +74,7 @@ void PIR::Control() {
 }
 
 
-Button::Button(String name, int16_t id, Buses bus, uint8_t address) : Generic(name, id, bus, address) {
+Button::Button(String name, int16_t id, Buses bus, uint8_t address, ButtonReportModes reportmode) : Generic(name, id, bus, address), mReportMode(reportmode) {
     Event.insert({
         {"Pressed",[&](callback_t callback){mPressed=callback;}},
         {"Released",[&](callback_t callback){mReleased=callback;}},
@@ -104,41 +104,62 @@ void Button::Control() {
     uint32_t now = millis();
 
     switch (mBus) {
-        case BUS_I2C: {
-            mState = pcf8574->digitalRead(mAddress);
-        } break;
-        default: {
-            mState = digitalRead(mAddress);
-        } break;
+        case BUS_I2C:  mState = pcf8574->digitalRead(mAddress); break;
+        default:       mState = digitalRead(mAddress);          break;
     }
 
     if (mState == mPressedState && mPrev_State != mPressedState) {
         mDown_Ms = now;
         mPressed_Triggered = false;
         mClick_Ms = mDown_Ms;
+
+        if (mReportMode == ButtonReportModes::BUTTONREPORTMODE_EDGESONLY) {
+            mSequenceSuppressClicks = true;
+        } else {
+            mSequenceSuppressClicks = false;
+        }
     } else if (mState == mPressedState && !mPressed_Triggered && (now - mDown_Ms >= Debounce_Time_Ms)) {
         mPressed_Triggered = true;
-        mClick_Count++;
-        if (mChanged) mChanged();
-        if (mPressed) mPressed();
+
+        if (mReportMode == ButtonReportModes::BUTTONREPORTMODE_EDGESONLY) {
+            if (mChanged) mChanged();
+            if (mPressed) mPressed();
+            mSequenceSuppressClicks = true;
+        } else {
+            mClick_Count++;
+            if (mChanged) mChanged();
+            if (mPressed) { }
+        }
     } else if (mState != mPressedState && mPrev_State == mPressedState) {
         mDown_Time_Ms = now - mDown_Ms;
         if (mDown_Time_Ms >= Debounce_Time_Ms) {
             if (mChanged) mChanged();
-            if (mReleased) mReleased();
-            if (mDown_Time_Ms >= LongClick_Time_Ms) mLongClick_Detected = true;
+
+            if (mReportMode == ButtonReportModes::BUTTONREPORTMODE_EDGESONLY) {
+                if (mReleased) mReleased();
+                mSequenceSuppressClicks = true;
+                mClick_Count = 0;
+                mLongClick_Detected = false;
+                mLongClick_Detected_Reported = false;
+                mLongClick_Detected_Counter = 0;
+            } else {
+                if (mDown_Time_Ms >= LongClick_Time_Ms) mLongClick_Detected = true;
+            }
         }
     } else if (mState != mPressedState && now - mClick_Ms > DoubleClick_Time_Ms) {
-        if (mLongClick_Detected) {
-            if (mClick_Count == 1) { mLast_Click_Type = CLICKTYPE_LONG; if (mLongClicked) mLongClicked(); }
-            mLongClick_Detected = false;
-            mLongClick_Detected_Reported = false;
-            mLongClick_Detected_Counter = 0;
-        } else if (mClick_Count > 0) {
-            switch (mClick_Count) {
-                case 1: { mLast_Click_Type = CLICKTYPE_SINGLE; if (mClicked) mClicked(); } break;
-                case 2: { mLast_Click_Type = CLICKTYPE_DOUBLE; if (mDoubleClicked) mDoubleClicked(); } break;
-                case 3: { mLast_Click_Type = CLICKTYPE_TRIPLE; if (mTripleClicked) mTripleClicked(); } break;
+
+        if (!mSequenceSuppressClicks) {
+            if (mLongClick_Detected) {
+                if (mClick_Count == 1) { mLast_Click_Type = CLICKTYPE_LONG; if (mLongClicked) mLongClicked(); }
+                mLongClick_Detected = false;
+                mLongClick_Detected_Reported = false;
+                mLongClick_Detected_Counter = 0;
+            } else if (mClick_Count > 0) {
+                switch (mClick_Count) {
+                    case 1: { mLast_Click_Type = CLICKTYPE_SINGLE; if (mClicked)       mClicked();       } break;
+                    case 2: { mLast_Click_Type = CLICKTYPE_DOUBLE; if (mDoubleClicked)  mDoubleClicked(); } break;
+                    case 3: { mLast_Click_Type = CLICKTYPE_TRIPLE; if (mTripleClicked)  mTripleClicked(); } break;
+                }
             }
         }
         mClick_Count = 0;
@@ -147,10 +168,14 @@ void Button::Control() {
 
     bool longclick_period_detected = now - mDown_Ms >= (LongClick_Time_Ms * (mLongClick_Detected_Counter + 1));
     if (mState == mPressedState && longclick_period_detected && !mLongClick_Detected_Reported) {
-        mLongClick_Detected_Reported = true;
-        mLongClick_Detected = true;
-        if (LongClick_Detected_Retriggerable) { mLongClick_Detected_Counter++; mLongClick_Detected_Reported = false; }
-        if (mLongClicked) mLongClicked();
+        if (mReportMode == ButtonReportModes::BUTTONREPORTMODE_CLICKSONLY && !mSequenceSuppressClicks) {
+            mLongClick_Detected_Reported = true;
+            mLongClick_Detected = true;
+            if (LongClick_Detected_Retriggerable) { mLongClick_Detected_Counter++; mLongClick_Detected_Reported = false; }
+            if (mLongClicked) mLongClicked();
+        } else {
+            mLongClick_Detected_Reported = true;
+        }
     }
 }
 

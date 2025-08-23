@@ -38,6 +38,11 @@ namespace DeviceIQ_Components {
         RELAYTYPE_NORMALLYOPENED
     };
 
+    enum class ButtonReportModes {
+        BUTTONREPORTMODE_CLICKSONLY,
+        BUTTONREPORTMODE_EDGESONLY
+    };
+
     enum ClickTypes { 
         CLICKTYPE_NOCLICK,
         CLICKTYPE_SINGLE,
@@ -155,6 +160,8 @@ namespace DeviceIQ_Components {
             bool mLongClick_Detected_Reported = false;
             bool mPressed_Triggered = false;
             bool mLongClick_Detected = false;
+            bool mSequenceSuppressClicks = false;
+            ButtonReportModes mReportMode = ButtonReportModes::BUTTONREPORTMODE_CLICKSONLY;
             uint8_t mPressedState = LOW;
             uint8_t mState;
             uint8_t mPrev_State;
@@ -167,7 +174,7 @@ namespace DeviceIQ_Components {
             uint32_t mLongClick_Detected_Counter;
             callback_t mPressed, mReleased, mChanged, mClicked, mLongClicked, mDoubleClicked, mTripleClicked;
         public:
-            Button(String name, int16_t id, Buses bus, uint8_t address);
+            Button(String name, int16_t id, Buses bus, uint8_t address, ButtonReportModes reportmode = ButtonReportModes::BUTTONREPORTMODE_CLICKSONLY);
             virtual ~Button() {}
 
             inline const Classes Class() override { return CLASS_BUTTON; }
@@ -177,6 +184,8 @@ namespace DeviceIQ_Components {
             bool LongClick_Detected_Retriggerable = false;
             inline const bool IsPressed() { return (mState == mPressedState); }
             inline const bool IsPressedRaw() { return (digitalRead(mAddress) == mPressedState); }
+            void ReportMode(ButtonReportModes mode) { mReportMode = mode; }
+            ButtonReportModes ReportMode() { return mReportMode; }
             inline const uint32_t WasPressedFor() { return mDown_Time_Ms; }
             inline const uint8_t NumberOfClicks() { return mClick_Count; }
             inline const ClickTypes ClickType() { return mLast_Click_Type; }
