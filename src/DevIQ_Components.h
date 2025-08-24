@@ -231,15 +231,17 @@ namespace DeviceIQ_Components {
             DallasTemperature* dallastemperature;
             DHT_Unified* dht;
             sensors_event_t dht_event;
-            DeviceIQ_DateTime::Timer* Updater;
+            DeviceIQ_DateTime::Timer* Updater_Timer;
+            DeviceIQ_DateTime::Timer* AutoRefresh_Timer;
             float newTemperature = 0;
             float newHumidity = 0;
             float mTemperature = 0;
             float mHumidity = 0;
             float mTemperatureThreshold = 0.5f;
+            uint32_t mAutoRefreshMs;
             callback_t mTemperatureChanged, mHumidityChanged;
         public:
-            Thermometer(String name, int16_t id, Buses bus, uint8_t address, ThermometerTypes type);
+            Thermometer(String name, int16_t id, Buses bus, uint8_t address, ThermometerTypes type, uint32_t autorefreshms = 1000);
             virtual ~Thermometer() {}
 
             inline const Classes Class() override { return CLASS_THERMOMETER; }
@@ -247,11 +249,12 @@ namespace DeviceIQ_Components {
             inline float Humidity() { return mHumidity; }
             TemperatureScales Scale = TEMPERATURESCALE_CELSIUS;
             inline bool operator==(Thermometer& rhs) { return (this == &rhs); }
-            inline void Control() override { Updater->Control(); }
-            inline void OnTemperatureChanged(callback_t callback) { mTemperatureChanged = callback; }
-            inline void OnHumidityChanged(callback_t callback) { mHumidityChanged = callback; }
+            inline void Control() override { Updater_Timer->Control(); AutoRefresh_Timer->Control(); }
+            inline void Refresh() override { if(mTemperatureChanged) mTemperatureChanged(); if(mHumidityChanged) mHumidityChanged(); }  
             inline void TemperatureThreshold(float v) { mTemperatureThreshold = v; }
             inline float TemperatureThreshold() const { return mTemperatureThreshold; }
+            inline void AutoRefreshMs(uint32_t v) { mAutoRefreshMs = v; }
+            inline uint32_t AutoRefreshMs() const { return mAutoRefreshMs; }
     };
 
     class Currentmeter : public Generic {

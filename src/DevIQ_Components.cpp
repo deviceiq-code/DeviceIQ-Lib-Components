@@ -266,13 +266,14 @@ void Blinds::Control() {
     mTimerDown->Control();
 }
 
-Thermometer::Thermometer(String name, int16_t id, Buses bus, uint8_t address, ThermometerTypes type) : Generic(name, id, bus, address), mType(type) {
+Thermometer::Thermometer(String name, int16_t id, Buses bus, uint8_t address, ThermometerTypes type, uint32_t autorefreshms) : Generic(name, id, bus, address), mType(type), mAutoRefreshMs(autorefreshms) {
     Event.insert({
-        {"TemperatureChanged",[&](callback_t callback){mTemperatureChanged=callback;}},
-        {"HumidityChanged",[&](callback_t callback){mHumidityChanged=callback;}}
+        {"TemperatureChanged",[&](callback_t callback) { mTemperatureChanged = callback; }},
+        {"HumidityChanged",[&](callback_t callback) { mHumidityChanged = callback; }}
     });
 
-    Updater = new DeviceIQ_DateTime::Timer(1000);
+    Updater_Timer = new DeviceIQ_DateTime::Timer(500);
+    AutoRefresh_Timer = new DeviceIQ_DateTime::Timer(mAutoRefreshMs);
 
     switch (mType) {
         case THERMOMETERTYPE_DHT11:
@@ -281,7 +282,7 @@ Thermometer::Thermometer(String name, int16_t id, Buses bus, uint8_t address, Th
         case THERMOMETERTYPE_DHT22: {
             dht = new DHT_Unified(mAddress, mType);
             dht->begin();
-            Updater->OnTimeout([&]{
+            Updater_Timer->OnTimeout([&] {
                 dht->temperature().getEvent(&dht_event);
                 newTemperature = (isnan(dht_event.temperature) ? -127 : dht_event.temperature);
                 dht->humidity().getEvent(&dht_event);
@@ -295,7 +296,7 @@ Thermometer::Thermometer(String name, int16_t id, Buses bus, uint8_t address, Th
             onewire = new OneWire(mAddress);
             dallastemperature = new DallasTemperature(onewire);
             dallastemperature->begin();
-            Updater->OnTimeout([&]{
+            Updater_Timer->OnTimeout([&] {
                 dallastemperature->requestTemperatures();
                 newTemperature = dallastemperature->getTempCByIndex(0);
                 newHumidity = 0;
@@ -306,7 +307,10 @@ Thermometer::Thermometer(String name, int16_t id, Buses bus, uint8_t address, Th
         } break;
     }
 
-    Updater->Start();
+    AutoRefresh_Timer->OnTimeout([&] { Refresh(); });
+
+    Updater_Timer->Start();
+    if (mAutoRefreshMs > 0) AutoRefresh_Timer->Start();
 }
 
 Currentmeter::Currentmeter(String name, int16_t id, Buses bus, uint8_t address) : Generic(name, id, bus, address) {
