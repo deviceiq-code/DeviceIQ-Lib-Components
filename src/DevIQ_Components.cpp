@@ -104,8 +104,12 @@ void Button::Control() {
     uint32_t now = millis();
 
     switch (mBus) {
-        case BUS_I2C:  mState = pcf8574->digitalRead(mAddress); break;
-        default:       mState = digitalRead(mAddress);          break;
+        case BUS_I2C: { 
+            mState = pcf8574->digitalRead(mAddress);
+        } break;
+        default: {
+            mState = digitalRead(mAddress);
+        } break;
     }
 
     if (mState == mPressedState && mPrev_State != mPressedState) {
@@ -373,7 +377,7 @@ void Currentmeter::CalibrateZero(uint16_t samples) {
     mAutoCalibrated = true;
 }
 
-Doorbell::Doorbell(String name, int16_t id, Buses bus, uint8_t address) : Button(name, id, bus, address) {
+Doorbell::Doorbell(String name, int16_t id, Buses bus, uint8_t address) : Button(name, id, bus, address, ButtonReportModes::BUTTONREPORTMODE_CLICKSONLY) {
     Event.insert({
         {"Ring", [&](callback_t cb){ mRing = cb; }},
         {"DoubleRing", [&](callback_t cb){ mDoubleRing = cb; }},
@@ -398,6 +402,36 @@ Doorbell::Doorbell(String name, int16_t id, Buses bus, uint8_t address) : Button
         mState = 3;
         mLastEventMs = millis();
         if (mLongRing) mLongRing();
+    });
+}
+
+ContactSensor::ContactSensor(String name, int16_t id, Buses bus, uint8_t address, bool invertClosed) : Button(name, id, bus, address, ButtonReportModes::BUTTONREPORTMODE_EDGESONLY), mInvertClosed(invertClosed) {
+    Event.insert({
+        {"Opened", [&](callback_t cb) { mOpened = cb; }},
+        {"Closed", [&](callback_t cb) { mClosed  = cb; }},
+        {"Changed", [&](callback_t cb) { mChanged = cb; }}
+    });
+
+    Event["Pressed"]([&] {
+        if (mInvertClosed) {
+            if (mOpened) mOpened();
+        } else {
+            if (mClosed) mClosed();
+        }
+        if (mChanged) mChanged();
+    });
+
+    Event["Released"]([&] {
+        if (mInvertClosed) {
+            if (mClosed) mClosed();
+        } else {
+            if (mOpened) mOpened();
+        }
+        if (mChanged) mChanged();
+    });
+
+    Event["Changed"]([&] {
+        if (mChanged) mChanged();
     });
 }
 

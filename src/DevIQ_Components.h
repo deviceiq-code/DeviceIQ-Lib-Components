@@ -24,7 +24,8 @@ namespace DeviceIQ_Components {
         CLASS_BLINDS,
         CLASS_THERMOMETER,
         CLASS_CURRENTMETER,
-        CLASS_DOORBELL
+        CLASS_DOORBELL,
+        CLASS_CONTACTSENSOR
     };
 
     enum Buses { 
@@ -78,7 +79,8 @@ namespace DeviceIQ_Components {
         {"Blinds", CLASS_BLINDS},
         {"Thermometer", CLASS_THERMOMETER},
         {"Currentmeter", CLASS_CURRENTMETER},
-        {"Doorbell", CLASS_DOORBELL}
+        {"Doorbell", CLASS_DOORBELL},
+        {"ContactSensor", CLASS_CONTACTSENSOR}
     };
 
     static const std::map<String, Buses> AvailableComponentBuses = {
@@ -314,6 +316,22 @@ namespace DeviceIQ_Components {
             inline uint8_t State() { if (mState != 0 && (millis() - mLastEventMs) >= mTimeoutMs) mState = 0; return mState; }
             inline void Timeout(uint32_t ms) { mTimeoutMs = ms; }
             inline uint32_t Timeout() { return mTimeoutMs; }
+    };
+
+    class ContactSensor : public Button {
+        private:
+            bool mInvertClosed = false;
+            callback_t mOpened = nullptr;
+            callback_t mClosed = nullptr;
+            callback_t mChanged = nullptr;
+        public:
+            ContactSensor(String name, int16_t id, Buses bus, uint8_t address, bool invertClosed = false);
+            virtual ~ContactSensor() {}
+            inline const Classes Class() override { return CLASS_CONTACTSENSOR; }
+            inline bool State() { bool pressed = IsPressed(); return mInvertClosed ? !pressed : pressed; }
+            inline bool IsClosed() { return State(); }
+            inline bool IsOpen()   { return !State(); }
+            inline void InvertClosed(bool v) { mInvertClosed = v; }
     };
 
     class Collection {
