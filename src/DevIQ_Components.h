@@ -101,6 +101,7 @@ namespace DeviceIQ_Components {
         protected:
             String mName;
             int16_t mID;
+            bool mEnabled = true;
             Buses mBus = BUS_ONBOARD;
             uint8_t mAddress = 0;
         public:
@@ -111,6 +112,8 @@ namespace DeviceIQ_Components {
             inline void Name(String value) { mName = value; }
             inline String Name() { return mName; }
             inline int16_t ID() { return mID; }
+            inline bool Enabled() { return mEnabled; }
+            inline void Enabled(bool value) { mEnabled = value; }
             inline Buses Bus() { return mBus; }
             inline uint8_t Address() { return mAddress; }
             virtual inline const Classes Class() { return CLASS_GENERIC; }
@@ -135,7 +138,7 @@ namespace DeviceIQ_Components {
             inline const Classes Class() override { return CLASS_RELAY; }
             inline const bool Invert() { return State(!State()); }
             inline const bool State() { return (mType == RELAYTYPE_NORMALLYOPENED ? !mState : mState); }
-            const bool State(bool newstate, bool savestate = true);
+            const void State(bool newstate, bool savestate = true);
             inline bool operator==(Relay& rhs) { return (this == &rhs); }
     };
 
@@ -251,8 +254,8 @@ namespace DeviceIQ_Components {
             inline float Humidity() { return mHumidity; }
             TemperatureScales Scale = TEMPERATURESCALE_CELSIUS;
             inline bool operator==(Thermometer& rhs) { return (this == &rhs); }
-            inline void Control() override { Updater_Timer->Control(); AutoRefresh_Timer->Control(); }
-            inline void Refresh() override { if(mTemperatureChanged) mTemperatureChanged(); if(mHumidityChanged) mHumidityChanged(); }  
+            inline void Control() override { if (!mEnabled) return; Updater_Timer->Control(); AutoRefresh_Timer->Control(); }
+            inline void Refresh() override { if (!mEnabled) return; if(mTemperatureChanged) mTemperatureChanged(); if(mHumidityChanged) mHumidityChanged(); }  
             inline void TemperatureThreshold(float v) { mTemperatureThreshold = v; }
             inline float TemperatureThreshold() const { return mTemperatureThreshold; }
             inline void AutoRefreshMs(uint32_t v) { mAutoRefreshMs = v; }
@@ -283,7 +286,7 @@ namespace DeviceIQ_Components {
             inline float CurrentAC() { return mCurrentAC; }
             inline float CurrentDC() { return mCurrentDC; }
             inline bool operator==(Currentmeter& rhs) { return (this == &rhs); }
-            inline void Control() override { Updater->Control(); }
+            inline void Control() override { if (!mEnabled) return; Updater->Control(); }
             inline void OnCurrentACChanged(callback_t callback) { mCurrentACChanged = callback; }
             inline void OnCurrentDCChanged(callback_t callback) { mCurrentDCChanged = callback; }
             inline void SetmVperAmp(float mv_per_amp) { mMvPerAmp = mv_per_amp; }

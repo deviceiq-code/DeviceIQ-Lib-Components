@@ -22,7 +22,9 @@ Relay::Relay(String name, int16_t id, Buses bus, uint8_t address, RelayTypes typ
     }
 }
 
-const bool Relay::State(bool newstate, bool savestate) {
+const void Relay::State(bool newstate, bool savestate) {
+    if (!mEnabled) return;
+
     mState = (mType == RELAYTYPE_NORMALLYOPENED ? !newstate : newstate);
 
     if (newstate) { if (mSettingOn) mSettingOn(); } else { if (mSettingOff) mSettingOff(); }
@@ -34,8 +36,6 @@ const bool Relay::State(bool newstate, bool savestate) {
 
     if (newstate) { if (mSetOn) mSetOn(); } else { if (mSetOff) mSetOff(); }
     if (mChanged) mChanged();
-
-    return State();
 }
 
 PIR::PIR(String name, int16_t id, Buses bus, uint8_t address): Generic(name, id, bus, address), mState(false), mPrevState(false) {
@@ -59,6 +59,8 @@ PIR::PIR(String name, int16_t id, Buses bus, uint8_t address): Generic(name, id,
 }
 
 void PIR::Control() {
+    if (!mEnabled) return;
+
     bool currentState = digitalRead(mAddress);
     uint32_t now = millis();
 
@@ -108,6 +110,8 @@ Button::Button(String name, int16_t id, Buses bus, uint8_t address, ButtonReport
 }
 
 void Button::Control() {
+    if (!mEnabled) return;
+
     mPrev_State = mState;
     uint32_t now = millis();
 
@@ -236,6 +240,8 @@ Blinds::Blinds(String name, int16_t id, Relay* relayup, Relay* relaydown) : Gene
 }
 
 void Blinds::Position(uint8_t value, bool setformerposition) {
+    if (!mEnabled) return;
+    
     value = constrain(value, 0, 100);
 
     if (setformerposition) {
@@ -274,6 +280,8 @@ void Blinds::Position(uint8_t value, bool setformerposition) {
 }
 
 void Blinds::Control() {
+    if (!mEnabled) return;
+    
     mTimerUp->Control();
     mTimerDown->Control();
 }
@@ -421,6 +429,8 @@ ContactSensor::ContactSensor(String name, int16_t id, Buses bus, uint8_t address
     });
 
     Event["Pressed"]([&] {
+        if (!mEnabled) return;
+
         if (mInvertClosed) {
             if (mOpened) mOpened();
         } else {
@@ -430,6 +440,8 @@ ContactSensor::ContactSensor(String name, int16_t id, Buses bus, uint8_t address
     });
 
     Event["Released"]([&] {
+        if (!mEnabled) return;
+
         if (mInvertClosed) {
             if (mClosed) mClosed();
         } else {
@@ -439,6 +451,8 @@ ContactSensor::ContactSensor(String name, int16_t id, Buses bus, uint8_t address
     });
 
     Event["Changed"]([&] {
+        if (!mEnabled) return;
+        
         if (mChanged) mChanged();
     });
 }
