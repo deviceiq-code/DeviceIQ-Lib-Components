@@ -75,15 +75,23 @@ void PIR::Control() {
 
 
 Button::Button(String name, int16_t id, Buses bus, uint8_t address, ButtonReportModes reportmode) : Generic(name, id, bus, address), mReportMode(reportmode) {
-    Event.insert({
-        {"Pressed",[&](callback_t callback){mPressed=callback;}},
-        {"Released",[&](callback_t callback){mReleased=callback;}},
-        {"Changed",[&](callback_t callback){mChanged=callback;}},
-        {"Clicked",[&](callback_t callback){mClicked=callback;}},
-        {"LongClicked",[&](callback_t callback){mLongClicked=callback;}},
-        {"DoubleClicked",[&](callback_t callback){mDoubleClicked=callback;}},
-        {"TripleClicked",[&](callback_t callback){mTripleClicked=callback;}}
-    });
+    switch(reportmode) {
+        case ButtonReportModes::BUTTONREPORTMODE_EDGESONLY: {
+             Event.insert({
+                {"Pressed",[&](callback_t callback) { mPressed = callback; }},
+                {"Released",[&](callback_t callback) { mReleased = callback; }},
+                {"Changed",[&](callback_t callback) { mChanged = callback; }}
+            });
+        } break;
+        case ButtonReportModes::BUTTONREPORTMODE_CLICKSONLY: {
+             Event.insert({
+                {"Clicked",[&](callback_t callback) { mClicked = callback; }},
+                {"DoubleClicked",[&](callback_t callback) { mDoubleClicked = callback; }},
+                {"TripleClicked",[&](callback_t callback) { mTripleClicked = callback; }},
+                {"LongClicked",[&](callback_t callback) { mLongClicked = callback; }}
+            });
+        } break;
+    }
 
     switch (mBus) {
         case BUS_I2C: {
