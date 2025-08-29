@@ -136,7 +136,7 @@ namespace DeviceIQ_Components {
             virtual ~Relay() {}
 
             inline const Classes Class() override { return CLASS_RELAY; }
-            inline const bool Invert() { return State(!State()); }
+            inline const void Invert() { State(!State()); }
             inline const bool State() { return (mType == RELAYTYPE_NORMALLYOPENED ? !mState : mState); }
             const void State(bool newstate, bool savestate = true);
             inline bool operator==(Relay& rhs) { return (this == &rhs); }
