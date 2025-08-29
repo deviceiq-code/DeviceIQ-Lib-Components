@@ -104,9 +104,10 @@ namespace DeviceIQ_Components {
             bool mEnabled = true;
             Buses mBus = BUS_ONBOARD;
             uint8_t mAddress = 0;
+            callback_t mChanged;
         public:
-            inline Generic(String name, int16_t id) : mName(name), mID(id) {}
-            inline Generic(String name, int16_t id, Buses bus, uint8_t address) : mName(name), mID(id), mBus(bus), mAddress(address) {}
+            inline Generic(String name, int16_t id);
+            inline Generic(String name, int16_t id, Buses bus, uint8_t address);
             virtual ~Generic() {}
 
             inline void Name(String value) { mName = value; }
@@ -119,7 +120,7 @@ namespace DeviceIQ_Components {
             virtual inline const Classes Class() { return CLASS_GENERIC; }
             std::map<String, std::function<void(callback_t)>> Event;
             virtual void Control() {}
-            virtual void Refresh() {}
+            inline void Refresh() { if (!mEnabled) return; if(mChanged) mChanged(); }
 
             template <typename T>
             T* as() { return static_cast<T*>(this); }
@@ -130,7 +131,7 @@ namespace DeviceIQ_Components {
             bool mState;
             RelayTypes mType;
             PCF8574* pcf8574;
-            callback_t mSettingOn, mSettingOff, mSetOn, mSetOff, mChanged;
+            callback_t mSettingOn, mSettingOff, mSetOn, mSetOff;
         public:
             Relay(String name, int16_t id, Buses bus, uint8_t address, RelayTypes type);
             virtual ~Relay() {}
@@ -148,7 +149,7 @@ namespace DeviceIQ_Components {
             bool mPrevState;
             uint32_t mLastChangeMs = 0;
             uint32_t mDebounceTimeMs = 200;
-            callback_t mMotionDetected, mMotionCleared, mChanged;
+            callback_t mMotionDetected, mMotionCleared;
         public:
             PIR(String name, int16_t id, Buses bus, uint8_t address);
             virtual ~PIR() {}
@@ -177,7 +178,7 @@ namespace DeviceIQ_Components {
             uint32_t mDown_Time_Ms = 0;
             uint32_t mClick_Ms;
             uint32_t mLongClick_Detected_Counter;
-            callback_t mPressed, mReleased, mChanged, mClicked, mLongClicked, mDoubleClicked, mTripleClicked;
+            callback_t mPressed, mReleased, mClicked, mLongClicked, mDoubleClicked, mTripleClicked;
         public:
             Button(String name, int16_t id, Buses bus, uint8_t address, ButtonReportModes reportmode = ButtonReportModes::BUTTONREPORTMODE_CLICKSONLY);
             virtual ~Button() {}
@@ -255,7 +256,6 @@ namespace DeviceIQ_Components {
             TemperatureScales Scale = TEMPERATURESCALE_CELSIUS;
             inline bool operator==(Thermometer& rhs) { return (this == &rhs); }
             inline void Control() override { if (!mEnabled) return; Updater_Timer->Control(); AutoRefresh_Timer->Control(); }
-            inline void Refresh() override { if (!mEnabled) return; if(mTemperatureChanged) mTemperatureChanged(); if(mHumidityChanged) mHumidityChanged(); }  
             inline void TemperatureThreshold(float v) { mTemperatureThreshold = v; }
             inline float TemperatureThreshold() const { return mTemperatureThreshold; }
             inline void AutoRefreshMs(uint32_t v) { mAutoRefreshMs = v; }
@@ -287,8 +287,6 @@ namespace DeviceIQ_Components {
             inline float CurrentDC() { return mCurrentDC; }
             inline bool operator==(Currentmeter& rhs) { return (this == &rhs); }
             inline void Control() override { if (!mEnabled) return; Updater->Control(); }
-            inline void OnCurrentACChanged(callback_t callback) { mCurrentACChanged = callback; }
-            inline void OnCurrentDCChanged(callback_t callback) { mCurrentDCChanged = callback; }
             inline void SetmVperAmp(float mv_per_amp) { mMvPerAmp = mv_per_amp; }
             inline void SetZeroOffsetmV(int offset_mv) { mZeroOffsetmV = offset_mv; mAutoCalibrated = true; }
             void CalibrateZero(uint16_t samples = 2000);
@@ -324,9 +322,7 @@ namespace DeviceIQ_Components {
     class ContactSensor : public Button {
         private:
             bool mInvertClosed = false;
-            callback_t mOpened = nullptr;
-            callback_t mClosed = nullptr;
-            callback_t mChanged = nullptr;
+            callback_t mOpened, mClosed;
         public:
             ContactSensor(String name, int16_t id, Buses bus, uint8_t address, bool invertClosed = false);
             virtual ~ContactSensor() {}

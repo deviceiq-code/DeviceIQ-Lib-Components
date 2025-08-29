@@ -2,13 +2,24 @@
 
 using namespace DeviceIQ_Components;
 
+Generic::Generic(String name, int16_t id) : mName(name), mID(id) {
+    Event.insert({
+        {"Changed",[&](callback_t callback) { mChanged = callback; }}
+    });
+}
+
+Generic::Generic(String name, int16_t id, Buses bus, uint8_t address) : mName(name), mID(id), mBus(bus), mAddress(address) {
+    Event.insert({
+        {"Changed",[&](callback_t callback) { mChanged = callback; }}
+    });
+}
+
 Relay::Relay(String name, int16_t id, Buses bus, uint8_t address, RelayTypes type) : Generic(name, id, bus, address), mType(type) {
     Event.insert({
-        {"SettingOn",[&](callback_t callback){mSettingOn=callback;}},
-        {"SettingOff",[&](callback_t callback){mSettingOff=callback;}},
-        {"SetOn",[&](callback_t callback){mSetOn=callback;}},
-        {"SetOff",[&](callback_t callback){mSetOff=callback;}},
-        {"Changed",[&](callback_t callback){mChanged=callback;}}
+        {"SettingOn",[&](callback_t callback) { mSettingOn = callback; }},
+        {"SettingOff",[&](callback_t callback) { mSettingOff = callback; }},
+        {"SetOn",[&](callback_t callback) { mSetOn = callback; }},
+        {"SetOff",[&](callback_t callback) { mSetOff = callback; }},
     });
 
     switch (mBus) {
@@ -41,8 +52,7 @@ const void Relay::State(bool newstate, bool savestate) {
 PIR::PIR(String name, int16_t id, Buses bus, uint8_t address): Generic(name, id, bus, address), mState(false), mPrevState(false) {
     Event.insert({
         {"MotionDetected", [&](callback_t callback) { mMotionDetected = callback; }},
-        {"MotionCleared", [&](callback_t callback) { mMotionCleared = callback; }},
-        {"Changed", [&](callback_t callback) { mChanged = callback; }}
+        {"MotionCleared", [&](callback_t callback) { mMotionCleared = callback; }}
     });
 
     switch (mBus) {
@@ -81,8 +91,7 @@ Button::Button(String name, int16_t id, Buses bus, uint8_t address, ButtonReport
         case ButtonReportModes::BUTTONREPORTMODE_EDGESONLY: {
              Event.insert({
                 {"Pressed",[&](callback_t callback) { mPressed = callback; }},
-                {"Released",[&](callback_t callback) { mReleased = callback; }},
-                {"Changed",[&](callback_t callback) { mChanged = callback; }}
+                {"Released",[&](callback_t callback) { mReleased = callback; }}
             });
         } break;
         case ButtonReportModes::BUTTONREPORTMODE_CLICKSONLY: {
@@ -197,10 +206,10 @@ void Button::Control() {
 
 Blinds::Blinds(String name, int16_t id, Relay* relayup, Relay* relaydown) : Generic(name, id, BUS_GROUP, 0), mRelayUp(relayup), mRelayDown(relaydown) {
     Event.insert({
-        {"Closed",[&](callback_t callback){mClosed=callback;}},
-        {"Opened",[&](callback_t callback){mOpened=callback;}},
-        {"BeforeClose",[&](callback_t callback){mBeforeClose=callback;}},
-        {"BeforeOpen",[&](callback_t callback){mBeforeOpen=callback;}}
+        {"Closed",[&](callback_t callback) { mClosed = callback; }},
+        {"Opened",[&](callback_t callback) { mOpened = callback; }},
+        {"BeforeClose",[&](callback_t callback) { mBeforeClose = callback; }},
+        {"BeforeOpen",[&](callback_t callback) { mBeforeOpen = callback; }}
     });
 
     mTimerUp = new DeviceIQ_DateTime::Timer(mStepMs);
@@ -218,7 +227,10 @@ Blinds::Blinds(String name, int16_t id, Relay* relayup, Relay* relaydown) : Gene
                 mRelayUp->State(true, false);
                 mRelayDown->State(false, false);
             }
-            if ((mCurrentPosition == 100) && (mOpened != nullptr)) mOpened();
+            if ((mCurrentPosition == 100) && (mOpened)) {
+                mOpened();
+                if (mChanged) mChanged();
+            }
         }
     });
 
@@ -234,7 +246,10 @@ Blinds::Blinds(String name, int16_t id, Relay* relayup, Relay* relaydown) : Gene
                 mRelayUp->State(false, false);
                 mRelayDown->State(true, false);
             }
-            if ((mCurrentPosition == 0) && (mClosed != nullptr)) mClosed();
+            if ((mCurrentPosition == 0) && (mClosed)) {
+                mClosed();
+                if (mChanged) mChanged();
+            }
         }
     });
 }
@@ -309,7 +324,7 @@ Thermometer::Thermometer(String name, int16_t id, Buses bus, uint8_t address, Th
                 newHumidity = (isnan(dht_event.relative_humidity) ? 0 : dht_event.relative_humidity);
                 if (Scale == TEMPERATURESCALE_FAHRENHEIT) newTemperature = (newTemperature * 9.0f / 5.0f) + 32.0f;
                 if (fabsf(newTemperature - mTemperature) >= mTemperatureThreshold) { mTemperature = newTemperature; if (mTemperatureChanged) mTemperatureChanged(); }
-                if (newHumidity != mHumidity) { mHumidity = newHumidity; if (mHumidityChanged) mHumidityChanged(); }
+                if (newHumidity != mHumidity) { mHumidity = newHumidity; if (mHumidityChanged) mHumidityChanged(); if (mChanged) mChanged(); }
             });
         } break;
         case THERMOMETERTYPE_DS18B20: {
@@ -322,7 +337,7 @@ Thermometer::Thermometer(String name, int16_t id, Buses bus, uint8_t address, Th
                 newHumidity = 0;
                 if (Scale == TEMPERATURESCALE_FAHRENHEIT) newTemperature = (newTemperature * 9.0f / 5.0f) + 32.0f;
                 if (fabsf(newTemperature - mTemperature) >= mTemperatureThreshold) { mTemperature = newTemperature; if (mTemperatureChanged) mTemperatureChanged(); }
-                if (newHumidity != mHumidity) { mHumidity = newHumidity; if (mHumidityChanged) mHumidityChanged(); }
+                if (newHumidity != mHumidity) { mHumidity = newHumidity; if (mHumidityChanged) mHumidityChanged(); if (mChanged) mChanged(); }
             });
         } break;
     }
@@ -335,8 +350,8 @@ Thermometer::Thermometer(String name, int16_t id, Buses bus, uint8_t address, Th
 
 Currentmeter::Currentmeter(String name, int16_t id, Buses bus, uint8_t address) : Generic(name, id, bus, address) {
     Event.insert({
-        {"CurrentACChanged",[&](callback_t callback){mCurrentACChanged=callback;}},
-        {"CurrentDCChanged",[&](callback_t callback){mCurrentDCChanged=callback;}}
+        {"CurrentACChanged",[&](callback_t callback) { mCurrentACChanged = callback; }},
+        {"CurrentDCChanged",[&](callback_t callback) { mCurrentDCChanged = callback; }}
     });
 
     #if defined(ESP32)
@@ -395,11 +410,11 @@ void Currentmeter::CalibrateZero(uint16_t samples) {
 
 Doorbell::Doorbell(String name, int16_t id, Buses bus, uint8_t address) : Button(name, id, bus, address, ButtonReportModes::BUTTONREPORTMODE_CLICKSONLY) {
     Event.insert({
-        {"Ring", [&](callback_t cb){ mRing = cb; }},
-        {"DoubleRing", [&](callback_t cb){ mDoubleRing = cb; }},
-        {"LongRing", [&](callback_t cb){ mLongRing = cb; }},
-        {"BrightnessChanged", [&](callback_t cb){ mBrightnessChanged = cb; }},
-        {"VolumeChanged", [&](callback_t cb){ mVolumeChanged = cb; }}
+        {"Ring", [&](callback_t callback) { mRing = callback; }},
+        {"DoubleRing", [&](callback_t callback) { mDoubleRing = callback; }},
+        {"LongRing", [&](callback_t callback) { mLongRing = callback; }},
+        {"BrightnessChanged", [&](callback_t callback) { mBrightnessChanged = callback; }},
+        {"VolumeChanged", [&](callback_t callback) { mVolumeChanged = callback; }}
     });
 
     Event["Clicked"]([&] {
@@ -423,9 +438,8 @@ Doorbell::Doorbell(String name, int16_t id, Buses bus, uint8_t address) : Button
 
 ContactSensor::ContactSensor(String name, int16_t id, Buses bus, uint8_t address, bool invertClosed) : Button(name, id, bus, address, ButtonReportModes::BUTTONREPORTMODE_EDGESONLY), mInvertClosed(invertClosed) {
     Event.insert({
-        {"Opened", [&](callback_t cb) { mOpened = cb; }},
-        {"Closed", [&](callback_t cb) { mClosed  = cb; }},
-        {"Changed", [&](callback_t cb) { mChanged = cb; }}
+        {"Opened", [&](callback_t callback) { mOpened = callback; }},
+        {"Closed", [&](callback_t callback) { mClosed  = callback; }}
     });
 
     Event["Pressed"]([&] {
