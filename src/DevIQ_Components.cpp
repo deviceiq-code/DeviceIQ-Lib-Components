@@ -301,14 +301,15 @@ void Blinds::Control() {
     mTimerDown->Control();
 }
 
-Thermometer::Thermometer(String name, int16_t id, Buses bus, uint8_t address, ThermometerTypes type, uint32_t autorefreshms) : Generic(name, id, bus, address), mType(type), mAutoRefreshMs(autorefreshms) {
+Thermometer::Thermometer(String name, int16_t id, Buses bus, uint8_t address, ThermometerTypes type) : Generic(name, id, bus, address), mType(type) {
     Event.insert({
         {"TemperatureChanged",[&](callback_t callback) { mTemperatureChanged = callback; }},
         {"HumidityChanged",[&](callback_t callback) { mHumidityChanged = callback; }}
     });
 
-    Updater_Timer = new DeviceIQ_DateTime::Timer(500);
-    AutoRefresh_Timer = new DeviceIQ_DateTime::Timer(mAutoRefreshMs);
+    Updater_Timer = new DeviceIQ_DateTime::Timer(25);
+    mCurrentPeriodMs = 1000;
+    mNextDueMs = millis();
 
     switch (mType) {
         case THERMOMETERTYPE_DHT11:
@@ -318,34 +319,82 @@ Thermometer::Thermometer(String name, int16_t id, Buses bus, uint8_t address, Th
             dht = new DHT_Unified(mAddress, mType);
             dht->begin();
             Updater_Timer->OnTimeout([&] {
+                const uint32_t now = millis();
+                if (now < mNextDueMs) return;
+
                 dht->temperature().getEvent(&dht_event);
                 newTemperature = (isnan(dht_event.temperature) ? -127 : dht_event.temperature);
                 dht->humidity().getEvent(&dht_event);
                 newHumidity = (isnan(dht_event.relative_humidity) ? 0 : dht_event.relative_humidity);
-                if (Scale == TEMPERATURESCALE_FAHRENHEIT) newTemperature = (newTemperature * 9.0f / 5.0f) + 32.0f;
-                if (fabsf(newTemperature - mTemperature) >= mTemperatureThreshold) { mTemperature = newTemperature; if (mTemperatureChanged) mTemperatureChanged(); }
-                if (newHumidity != mHumidity) { mHumidity = newHumidity; if (mHumidityChanged) mHumidityChanged(); if (mChanged) mChanged(); }
+
+                if (Scale == TEMPERATURESCALE_FAHRENHEIT)
+                    newTemperature = (newTemperature * 9.0f / 5.0f) + 32.0f;
+
+                bool tempChanged = fabsf(newTemperature - mTemperature) >= mTemperatureThreshold;
+                bool humChanged = (newHumidity != mHumidity);
+
+                if (tempChanged) { mTemperature = newTemperature; if (mTemperatureChanged) mTemperatureChanged(); }
+                if (humChanged) { mHumidity = newHumidity; if (mHumidityChanged) mHumidityChanged(); if (mChanged) mChanged(); }
+
+                if (tempChanged || humChanged)
+                    mCurrentPeriodMs = mMinPeriodMs;
+                else
+                    mCurrentPeriodMs = min<uint32_t>(mCurrentPeriodMs * 2, mMaxPeriodMs);
+
+                mNextDueMs = now + mCurrentPeriodMs;
             });
         } break;
         case THERMOMETERTYPE_DS18B20: {
             onewire = new OneWire(mAddress);
             dallastemperature = new DallasTemperature(onewire);
             dallastemperature->begin();
+            dallastemperature->setWaitForConversion(false);
+            dallastemperature->setResolution(10);
+            mConvMaxMs = 188;
+
+            Updater_Timer->SetTimeout(25);
             Updater_Timer->OnTimeout([&] {
-                dallastemperature->requestTemperatures();
-                newTemperature = dallastemperature->getTempCByIndex(0);
-                newHumidity = 0;
-                if (Scale == TEMPERATURESCALE_FAHRENHEIT) newTemperature = (newTemperature * 9.0f / 5.0f) + 32.0f;
-                if (fabsf(newTemperature - mTemperature) >= mTemperatureThreshold) { mTemperature = newTemperature; if (mTemperatureChanged) mTemperatureChanged(); }
-                if (newHumidity != mHumidity) { mHumidity = newHumidity; if (mHumidityChanged) mHumidityChanged(); if (mChanged) mChanged(); }
+                const uint32_t now = millis();
+
+                if (mDSState == DSState::Idle) {
+                    if (now >= mNextDueMs) {
+                        dallastemperature->requestTemperatures();
+                        mReqStartMs = now;
+                        mDSState = DSState::Waiting;
+                    }
+                    return;
+                }
+
+                if (mDSState == DSState::Waiting) {
+                    bool done = dallastemperature->isConversionComplete() || (now - mReqStartMs) >= mConvMaxMs;
+                    if (!done) return;
+
+                    newTemperature = dallastemperature->getTempCByIndex(0);
+                    newHumidity = 0;
+
+                    if (Scale == TEMPERATURESCALE_FAHRENHEIT)
+                        newTemperature = (newTemperature * 9.0f / 5.0f) + 32.0f;
+
+                    bool tempChanged = fabsf(newTemperature - mTemperature) >= mTemperatureThreshold;
+                    if (tempChanged) {
+                        mTemperature = newTemperature;
+                        if (mTemperatureChanged) mTemperatureChanged();
+                        if (mChanged) mChanged();
+                    }
+
+                    if (tempChanged)
+                        mCurrentPeriodMs = mMinPeriodMs;
+                    else
+                        mCurrentPeriodMs = min<uint32_t>(mCurrentPeriodMs * 2, mMaxPeriodMs);
+
+                    mNextDueMs = now + mCurrentPeriodMs;
+                    mDSState = DSState::Idle;
+                }
             });
         } break;
     }
 
-    AutoRefresh_Timer->OnTimeout([&] { Refresh(); });
-
     Updater_Timer->Start();
-    if (mAutoRefreshMs > 0) AutoRefresh_Timer->Start();
 }
 
 Currentmeter::Currentmeter(String name, int16_t id, Buses bus, uint8_t address) : Generic(name, id, bus, address) {

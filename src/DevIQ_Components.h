@@ -184,7 +184,7 @@ namespace DeviceIQ_Components {
             virtual ~Button() {}
 
             inline const Classes Class() override { return CLASS_BUTTON; }
-            uint32_t Debounce_Time_Ms = 50;
+            uint32_t Debounce_Time_Ms = 15;
             uint32_t LongClick_Time_Ms = 300;
             uint32_t DoubleClick_Time_Ms = 300;
             bool LongClick_Detected_Retriggerable = false;
@@ -232,22 +232,30 @@ namespace DeviceIQ_Components {
 
     class Thermometer : public Generic {
         private:
+            enum class DSState { Idle, Waiting };
+            DSState mDSState = DSState::Idle;
+
+            uint32_t mReqStartMs = 0;
+            uint16_t mConvMaxMs = 188;
+            uint32_t mNextDueMs = 0;
+            uint32_t mMinPeriodMs = 250;
+            uint32_t mMaxPeriodMs = 5000;
+            uint32_t mCurrentPeriodMs = 1000;
+
             ThermometerTypes mType = THERMOMETERTYPE_DHT11;
             OneWire* onewire;
             DallasTemperature* dallastemperature;
             DHT_Unified* dht;
             sensors_event_t dht_event;
             DeviceIQ_DateTime::Timer* Updater_Timer;
-            DeviceIQ_DateTime::Timer* AutoRefresh_Timer;
             float newTemperature = 0;
             float newHumidity = 0;
             float mTemperature = 0;
             float mHumidity = 0;
             float mTemperatureThreshold = 0.5f;
-            uint32_t mAutoRefreshMs;
             callback_t mTemperatureChanged, mHumidityChanged;
         public:
-            Thermometer(String name, int16_t id, Buses bus, uint8_t address, ThermometerTypes type, uint32_t autorefreshms = 1000);
+            Thermometer(String name, int16_t id, Buses bus, uint8_t address, ThermometerTypes type);
             virtual ~Thermometer() {}
 
             inline const Classes Class() override { return CLASS_THERMOMETER; }
@@ -255,11 +263,9 @@ namespace DeviceIQ_Components {
             inline float Humidity() { return mHumidity; }
             TemperatureScales Scale = TEMPERATURESCALE_CELSIUS;
             inline bool operator==(Thermometer& rhs) { return (this == &rhs); }
-            inline void Control() override { if (!mEnabled) return; Updater_Timer->Control(); AutoRefresh_Timer->Control(); }
+            inline void Control() override { if (!mEnabled) return; Updater_Timer->Control(); }
             inline void TemperatureThreshold(float v) { mTemperatureThreshold = v; }
             inline float TemperatureThreshold() const { return mTemperatureThreshold; }
-            inline void AutoRefreshMs(uint32_t v) { mAutoRefreshMs = v; }
-            inline uint32_t AutoRefreshMs() const { return mAutoRefreshMs; }
     };
 
     class Currentmeter : public Generic {
