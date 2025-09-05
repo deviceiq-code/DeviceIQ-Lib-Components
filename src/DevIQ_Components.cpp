@@ -512,12 +512,6 @@ ContactSensor::ContactSensor(String name, int16_t id, Buses bus, uint8_t address
         }
         if (mChanged) mChanged();
     });
-
-    Event["Changed"]([&] {
-        if (!mEnabled) return;
-        
-        if (mChanged) mChanged();
-    });
 }
 
 bool Collection::Add(Generic* new_component) {
