@@ -2,6 +2,85 @@
 
 using namespace DeviceIQ_Components;
 
+int16_t Collection::Remove(int16_t index) {
+    if (index < 0 || index >= (int16_t)mCollection.size()) return -1;
+    
+    Pause();
+    mMutating = true;
+        
+    delete mCollection[index];
+    mCollection.erase(mCollection.begin() + index);
+    
+    mMutating = false;
+    Resume();
+    
+    return (int16_t)mCollection.size();
+}
+
+void Collection::Clear() {
+    Pause();
+    mMutating = true;
+    
+    for (auto* m : mCollection) delete m;
+    
+    mCollection.clear();
+    
+    mMutating = false;
+    Resume();
+}
+
+void Collection::Control() {
+    if (mState != RunState::Running || mMutating) return;
+    
+    for (auto* m : mCollection) {
+        if (mState != RunState::Running || mMutating) break;
+        if (m) m->Control();
+    }
+}
+
+bool Collection::Add(Generic* new_component) {
+    if (new_component == nullptr) return false;
+    if (mMutating) return false;
+
+    Pause();
+    mMutating = true;
+
+    bool added = false;
+
+    if (IndexOf(new_component->Name()) == -1) {
+        bool exists = false;
+
+        for (const auto* m : mCollection) {
+            if (m == nullptr) continue;
+
+            switch (m->Class()) {
+                case CLASS_GENERIC:
+                case CLASS_BLINDS:
+                    break;
+
+                default:
+                    if ((m->Bus() == new_component->Bus()) &&
+                        (m->Address() == new_component->Address())) {
+                        exists = true;
+                    }
+                    break;
+            }
+
+            if (exists) break;
+        }
+
+        if (!exists) {
+            mCollection.push_back(new_component);
+            added = true;
+        }
+    }
+
+    mMutating = false;
+    Resume();
+
+    return added;
+}
+
 Generic::Generic(String name, int16_t id) : mName(name), mID(id) {
     Event.insert({
         {"Changed",[&](callback_t callback) { mChanged = callback; }}
@@ -512,19 +591,4 @@ ContactSensor::ContactSensor(String name, int16_t id, Buses bus, uint8_t address
         }
         if (mChanged) mChanged();
     });
-}
-
-bool Collection::Add(Generic* new_component) {
-    if (IndexOf(new_component->Name()) == -1) {
-        bool exists = false;
-        for (const auto m : mCollection) {
-            switch (m->Class()) {
-                case CLASS_GENERIC:
-                case CLASS_BLINDS: break;
-                default: { if ((m->Bus() == new_component->Bus()) && (m->Address() == new_component->Address())) exists = true; } break;
-            }
-        }
-        if (!exists) { mCollection.push_back(new_component); return true; }
-    }
-    return false;
 }

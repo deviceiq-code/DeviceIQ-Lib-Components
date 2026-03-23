@@ -16,6 +16,11 @@
 namespace DeviceIQ_Components {
     typedef std::function<void()> callback_t;
 
+    enum RunState {
+        Running,
+        Paused
+    };
+
     enum Classes { 
         CLASS_GENERIC,
         CLASS_RELAY,
@@ -97,6 +102,12 @@ namespace DeviceIQ_Components {
         {"DS18B20", THERMOMETERTYPE_DS18B20}
     };
 
+    template<typename T>
+    inline static String EnumToString(const std::map<String, T>& table, T value) {
+        for (const auto& it : table) if (it.second == value) return it.first;
+        return "Unknown";
+    }
+
     class Generic {
         protected:
             String mName;
@@ -111,13 +122,13 @@ namespace DeviceIQ_Components {
             virtual ~Generic() {}
 
             inline void Name(String value) { mName = value; }
-            inline String Name() { return mName; }
+            inline const String& Name() const { return mName; }
             inline int16_t ID() { return mID; }
             inline bool Enabled() { return mEnabled; }
             inline void Enabled(bool value) { mEnabled = value; }
-            inline Buses Bus() { return mBus; }
-            inline uint8_t Address() { return mAddress; }
-            virtual inline const Classes Class() { return CLASS_GENERIC; }
+            inline Buses Bus() const { return mBus; }
+            inline uint8_t Address() const { return mAddress; }
+            virtual inline Classes Class() const { return CLASS_GENERIC; }
             std::map<String, std::function<void(callback_t)>> Event;
             virtual void Control() {}
             inline void Refresh() { if (!mEnabled) return; if(mChanged) mChanged(); }
@@ -136,7 +147,7 @@ namespace DeviceIQ_Components {
             Relay(String name, int16_t id, Buses bus, uint8_t address, RelayTypes type);
             virtual ~Relay() {}
 
-            inline const Classes Class() override { return CLASS_RELAY; }
+            inline Classes Class() const override { return CLASS_RELAY; }
             inline const void Invert() { State(!State()); }
             inline const bool State() { return (mType == RELAYTYPE_NORMALLYOPENED ? !mState : mState); }
             const void State(bool newstate, bool savestate = true);
@@ -154,7 +165,7 @@ namespace DeviceIQ_Components {
             PIR(String name, int16_t id, Buses bus, uint8_t address);
             virtual ~PIR() {}
 
-            inline const Classes Class() override { return Classes::CLASS_PIR; }
+            inline Classes Class() const override { return Classes::CLASS_PIR; }
             inline bool State() { return mState; }
             inline void DebounceTime(uint32_t ms) { mDebounceTimeMs = ms; }
             
@@ -183,7 +194,7 @@ namespace DeviceIQ_Components {
             Button(String name, int16_t id, Buses bus, uint8_t address, ButtonReportModes reportmode = ButtonReportModes::BUTTONREPORTMODE_CLICKSONLY);
             virtual ~Button() {}
 
-            inline const Classes Class() override { return CLASS_BUTTON; }
+            inline Classes Class() const override { return CLASS_BUTTON; }
             uint32_t Debounce_Time_Ms = 15;
             uint32_t LongClick_Time_Ms = 300;
             uint32_t DoubleClick_Time_Ms = 300;
@@ -217,7 +228,7 @@ namespace DeviceIQ_Components {
             Blinds(String name, int16_t id, Relay* relayup, Relay* relaydown);
             virtual ~Blinds() {}
 
-            inline const Classes Class() override { return CLASS_BLINDS; }
+            inline Classes Class() const override { return CLASS_BLINDS; }
             void Position(uint8_t value, bool setformerposition = false);
             inline uint8_t Position() { return mCurrentPosition; }
             inline BlindsStates State() { return mState; }
@@ -258,7 +269,7 @@ namespace DeviceIQ_Components {
             Thermometer(String name, int16_t id, Buses bus, uint8_t address, ThermometerTypes type);
             virtual ~Thermometer() {}
 
-            inline const Classes Class() override { return CLASS_THERMOMETER; }
+            inline Classes Class() const override { return CLASS_THERMOMETER; }
             inline float Temperature() { return mTemperature; }
             inline float Humidity() { return mHumidity; }
             TemperatureScales Scale = TEMPERATURESCALE_CELSIUS;
@@ -288,7 +299,7 @@ namespace DeviceIQ_Components {
             Currentmeter(String name, int16_t id, Buses bus, uint8_t address);
             virtual ~Currentmeter() {}
 
-            inline const Classes Class() override { return CLASS_CURRENTMETER; }
+            inline Classes Class() const override { return CLASS_CURRENTMETER; }
             inline float CurrentAC() { return mCurrentAC; }
             inline float CurrentDC() { return mCurrentDC; }
             inline bool operator==(Currentmeter& rhs) { return (this == &rhs); }
@@ -315,7 +326,7 @@ namespace DeviceIQ_Components {
         public:
             Doorbell(String name, int16_t id, Buses bus, uint8_t address);
             virtual ~Doorbell() {}
-            inline const Classes Class() override { return CLASS_DOORBELL; }
+            inline Classes Class() const override { return CLASS_DOORBELL; }
             inline uint8_t Brightness() { return mBrightness; }
             inline void Brightness(uint8_t v) { v = constrain(v, 0, 100); if (v != mBrightness) { mBrightness = v; if (mBrightnessChanged) mBrightnessChanged(); } }
             inline uint8_t Volume() { return mVolume; }
@@ -332,7 +343,7 @@ namespace DeviceIQ_Components {
         public:
             ContactSensor(String name, int16_t id, Buses bus, uint8_t address, bool invertClosed = false);
             virtual ~ContactSensor() {}
-            inline const Classes Class() override { return CLASS_CONTACTSENSOR; }
+            inline Classes Class() const override { return CLASS_CONTACTSENSOR; }
             inline bool State() { bool pressed = IsPressed(); return mInvertClosed ? !pressed : pressed; }
             inline bool IsClosed() { return State(); }
             inline bool IsOpen()   { return !State(); }
@@ -341,23 +352,39 @@ namespace DeviceIQ_Components {
 
     class Collection {
         private:
+            RunState mState = RunState::Running;
+            bool mMutating = false;
             std::vector<Generic*> mCollection;
+
+            inline void Pause() { mState = RunState::Paused; }
+            inline void Resume() { mState = RunState::Running; }
+
         public:
             bool Add(Generic* new_component);
-            inline int16_t IndexOf(const String& name) { for (int16_t i = 0; i < (int16_t)mCollection.size(); ++i) { if (mCollection[i]->Name().equalsIgnoreCase(name)) return i; } return -1; }
-            inline int16_t Remove(int16_t index) { if (index < 0 || index >= (int16_t)mCollection.size()) return -1; mCollection.erase(mCollection.begin() + index); return (int16_t)mCollection.size(); }
+            inline bool IsPaused() const { return mState == RunState::Paused; }
+            inline bool IsMutating() const { return mMutating; }
+
+            inline int16_t IndexOf(const String& name) { for (int16_t i = 0; i < (int16_t)mCollection.size(); ++i) { if (mCollection[i] && mCollection[i]->Name().equalsIgnoreCase(name)) return i; } return -1; }
+
+            int16_t Remove(int16_t index);
             inline int16_t Remove(const String& name) { int16_t idx = IndexOf(name); return (idx >= 0) ? Remove(idx) : -1; }
-            inline void Clear() { for (auto* m : mCollection) delete m; mCollection.clear(); }
+
+            void Clear();
+
             inline Generic* At(int16_t index) { if (index < 0 || index >= (int16_t)mCollection.size()) return nullptr; return mCollection[index]; }
-            inline size_t Count() { return mCollection.size(); }
+            inline size_t Count() const { return mCollection.size(); }
+
             inline Generic* operator[](int16_t index) { return At(index); }
             inline Generic* operator[](const String& name) { return At(IndexOf(name)); }
+
             inline std::vector<Generic*>::iterator begin() { return mCollection.begin(); }
             inline std::vector<Generic*>::iterator end() { return mCollection.end(); }
             inline std::vector<Generic*>::const_iterator begin() const { return mCollection.begin(); }
             inline std::vector<Generic*>::const_iterator end() const { return mCollection.end(); }
-            inline void Control() { for (const auto m : mCollection) m->Control(); }
-            inline void Refresh() { for (const auto m : mCollection) m->Refresh(); }
+
+            inline void Refresh() { if (mMutating) return; for (auto* m : mCollection) { if (m) m->Refresh(); }}
+            
+            void Control();
     };
 }
 
