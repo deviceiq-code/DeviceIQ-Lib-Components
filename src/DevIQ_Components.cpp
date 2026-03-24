@@ -283,7 +283,7 @@ void Button::Control() {
     }
 }
 
-Blinds::Blinds(String name, int16_t id, Relay* relayup, Relay* relaydown) : Generic(name, id, BUS_GROUP, 0), mRelayUp(relayup), mRelayDown(relaydown) {
+Blinds::Blinds(String name, int16_t id, Relay* relayup, Relay* relaydown) : Generic(name, id, BUS_GROUP, 0), mRelayUp(relayup), mRelayDown(relaydown), mCurrentPosition(0), mTargetPosition(0) {
     Event.insert({
         {"Closed",[&](callback_t callback) { mClosed = callback; }},
         {"Opened",[&](callback_t callback) { mOpened = callback; }},
