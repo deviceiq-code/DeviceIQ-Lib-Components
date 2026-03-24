@@ -132,6 +132,7 @@ namespace DeviceIQ_Components {
             std::map<String, std::function<void(callback_t)>> Event;
             virtual void Control() {}
             inline void Refresh() { if (!mEnabled) return; if(mChanged) mChanged(); }
+            virtual bool IsVirtual() const { return false; }
 
             template <typename T>
             T* as() { return static_cast<T*>(this); }
@@ -228,6 +229,9 @@ namespace DeviceIQ_Components {
             Blinds(String name, int16_t id, Relay* relayup, Relay* relaydown);
             virtual ~Blinds() {}
 
+            inline Relay* RelayUp() const { return mRelayUp; }
+            inline Relay* RelayDown() const { return mRelayDown; }
+
             inline Classes Class() const override { return CLASS_BLINDS; }
             void Position(uint8_t value, bool setformerposition = false);
             inline uint8_t Position() { return mCurrentPosition; }
@@ -239,6 +243,8 @@ namespace DeviceIQ_Components {
             inline void CancelAction() { mCancel = true; }
             inline bool operator==(Blinds& rhs) { return (this == &rhs); }
             void Control() override;
+
+            inline bool IsVirtual() const override { return true; }
     };
 
     class Thermometer : public Generic {
