@@ -207,6 +207,7 @@ namespace DeviceIQ_Components {
             inline const uint32_t WasPressedFor() { return mDown_Time_Ms; }
             inline const uint8_t NumberOfClicks() { return mClick_Count; }
             inline const ClickTypes ClickType() { return mLast_Click_Type; }
+            void Do(ClickTypes click);
             inline bool operator==(Button& rhs) { return (this == &rhs); }
             inline const bool State() { return IsPressed(); }
             void Control() override;
