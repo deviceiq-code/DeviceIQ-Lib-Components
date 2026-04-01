@@ -287,23 +287,18 @@ void Button::Do(ClickTypes click) {
     switch (click) {
         case CLICKTYPE_SINGLE: {
             mClick_Count = 1;
-            if (mClicked) mClicked();
         } break;
         case CLICKTYPE_DOUBLE: {
             mClick_Count = 2;
-            if (mDoubleClicked) mDoubleClicked();
         } break;
         case CLICKTYPE_TRIPLE: {
             mClick_Count = 3;
-            if (mTripleClicked) mTripleClicked();
         } break;
         case CLICKTYPE_LONG: {
             mClick_Count = 1;
             mLongClick_Detected = true;
             mLongClick_Detected_Reported = true;
-            if (mLongClicked) mLongClicked();
         } break;
-
         default: {
             mClick_Count = 0;
         } break;
