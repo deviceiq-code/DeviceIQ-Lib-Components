@@ -249,8 +249,8 @@ namespace DeviceIQ_Components {
             void Position(uint8_t value, bool setformerposition = false);
             inline uint8_t Position() { return mCurrentPosition; }
             inline BlindsStates State() { return mState; }
-            inline void Open() { mState = BLINDSSTATE_INCREASING; Position(100); }
-            inline void Close() { mState = BLINDSSTATE_DECREASING; Position(0); }
+            inline void Open() { Position(100); }
+            inline void Close() { Position(0); }
             inline void StepMs(uint16_t value) { mStepMs = value; mTimerUp->SetTimeout(mStepMs); mTimerDown->SetTimeout(mStepMs); }
             inline uint16_t StepMs() { return mStepMs; }
             inline void CancelAction() { mCancel = true; }
