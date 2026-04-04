@@ -382,15 +382,16 @@ Blinds::Blinds(String name, int16_t id, Relay* relayup, Relay* relaydown) : Gene
             mRelayUp->State(false);
             mRelayDown->State(false);
             mState = BLINDSSTATE_STOPPED;
+            if (mChanged) mChanged();
         } else {
             if (mCurrentPosition < mTargetPosition) {
                 mCurrentPosition++;
                 mRelayUp->State(true, false);
                 mRelayDown->State(false, false);
             }
-            if ((mCurrentPosition == 100) && (mOpened)) {
-                mOpened();
-                if (mChanged) mChanged();
+
+            if (mCurrentPosition == 100) {
+                if (mOpened) mOpened();
             }
         }
     });
@@ -401,15 +402,16 @@ Blinds::Blinds(String name, int16_t id, Relay* relayup, Relay* relaydown) : Gene
             mRelayUp->State(false);
             mRelayDown->State(false);
             mState = BLINDSSTATE_STOPPED;
+            if (mChanged) mChanged();
         } else {
             if (mCurrentPosition > mTargetPosition) {
                 mCurrentPosition--;
                 mRelayUp->State(false, false);
                 mRelayDown->State(true, false);
             }
-            if ((mCurrentPosition == 0) && (mClosed)) {
-                mClosed();
-                if (mChanged) mChanged();
+
+            if (mCurrentPosition == 0) {
+                if (mClosed) mClosed();
             }
         }
     });
@@ -417,40 +419,58 @@ Blinds::Blinds(String name, int16_t id, Relay* relayup, Relay* relaydown) : Gene
 
 void Blinds::Position(uint8_t value, bool setformerposition) {
     if (!mEnabled) return;
-    
+
     value = constrain(value, 0, 100);
+
+    // Caso idempotente (já está na posição e parado)
+    if (value == mCurrentPosition && mState == BLINDSSTATE_STOPPED) {
+        mTargetPosition = value;
+        if (mChanged) mChanged();
+        return;
+    }
 
     if (setformerposition) {
         mCurrentPosition = value;
         mTargetPosition = value;
-    } else {
-        if (mState != BLINDSSTATE_STOPPED) {
-            mRelayUp->State(false, false);
-            mRelayDown->State(false, false);
-            mTimerUp->Stop();
-            mTimerDown->Stop();
-        }
+        if (mChanged) mChanged();
+        return;
+    }
 
-        if (value > mCurrentPosition) {
-            if (mBeforeOpen != nullptr) mBeforeOpen();
-            if (mCancel) {
-                mCancel = false;
-            } else {
-                mRelayDown->State(false, false);
-                mTargetPosition = value;
-                mTimerUp->Start();
-                mState = BLINDSSTATE_INCREASING;
-            }
-        } else if (value < mCurrentPosition) {
-            if (mBeforeClose != nullptr) mBeforeClose();
-            if (mCancel) {
-                mCancel = false;
-            } else {
-                mRelayUp->State(false, false);
-                mTargetPosition = value;
-                mTimerDown->Start();
-                mState = BLINDSSTATE_DECREASING;
-            }
+    // Se estava em movimento, para tudo primeiro
+    if (mState != BLINDSSTATE_STOPPED) {
+        mRelayUp->State(false, false);
+        mRelayDown->State(false, false);
+        mTimerUp->Stop();
+        mTimerDown->Stop();
+    }
+
+    if (value > mCurrentPosition) {
+        if (mBeforeOpen) mBeforeOpen();
+
+        if (mCancel) {
+            mCancel = false;
+        } else {
+            mRelayDown->State(false, false);
+            mTargetPosition = value;
+            mState = BLINDSSTATE_INCREASING;
+
+            if (mChanged) mChanged(); // início do movimento
+
+            mTimerUp->Start();
+        }
+    } else if (value < mCurrentPosition) {
+        if (mBeforeClose) mBeforeClose();
+
+        if (mCancel) {
+            mCancel = false;
+        } else {
+            mRelayUp->State(false, false);
+            mTargetPosition = value;
+            mState = BLINDSSTATE_DECREASING;
+
+            if (mChanged) mChanged(); // início do movimento
+
+            mTimerDown->Start();
         }
     }
 }
