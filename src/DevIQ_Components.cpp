@@ -93,6 +93,16 @@ Generic::Generic(String name, int16_t id, Buses bus, uint8_t address) : mName(na
     });
 }
 
+callback_t Generic::GetEventCallback(const String& eventName) {
+    if (eventName.equalsIgnoreCase("Changed")) return mChanged;
+    return nullptr;
+}
+
+bool Generic::SetEventCallback(const String& eventName, callback_t cb) {
+    if (eventName.equalsIgnoreCase("Changed")) { mChanged = cb; return true; }
+    return false;
+}
+
 Relay::Relay(String name, int16_t id, Buses bus, uint8_t address, RelayTypes type) : Generic(name, id, bus, address), mType(type) {
     Event.insert({
         {"SettingOn",[&](callback_t callback) { mSettingOn = callback; }},
@@ -126,6 +136,22 @@ const void Relay::State(bool newstate, bool savestate) {
 
     if (newstate) { if (mSetOn) mSetOn(); } else { if (mSetOff) mSetOff(); }
     if (mChanged) mChanged();
+}
+
+callback_t Relay::GetEventCallback(const String& eventName) {
+    if (eventName.equalsIgnoreCase("SettingOn")) return mSettingOn;
+    if (eventName.equalsIgnoreCase("SettingOff")) return mSettingOff;
+    if (eventName.equalsIgnoreCase("SetOn")) return mSetOn;
+    if (eventName.equalsIgnoreCase("SetOff")) return mSetOff;
+    return Generic::GetEventCallback(eventName);
+}
+
+bool Relay::SetEventCallback(const String& eventName, callback_t cb) {
+    if (eventName.equalsIgnoreCase("SettingOn")) { mSettingOn = cb; return true; }
+    if (eventName.equalsIgnoreCase("SettingOff")) { mSettingOff = cb; return true; }
+    if (eventName.equalsIgnoreCase("SetOn")) { mSetOn = cb; return true; }
+    if (eventName.equalsIgnoreCase("SetOff")) { mSetOff = cb; return true; }
+    return Generic::SetEventCallback(eventName, cb);
 }
 
 PIR::PIR(String name, int16_t id, Buses bus, uint8_t address): Generic(name, id, bus, address), mState(false), mPrevState(false) {
@@ -164,6 +190,17 @@ void PIR::Control() {
     }
 }
 
+callback_t PIR::GetEventCallback(const String& eventName) {
+    if (eventName.equalsIgnoreCase("MotionDetected")) return mMotionDetected;
+    if (eventName.equalsIgnoreCase("MotionCleared")) return mMotionCleared;
+    return Generic::GetEventCallback(eventName);
+}
+
+bool PIR::SetEventCallback(const String& eventName, callback_t cb) {
+    if (eventName.equalsIgnoreCase("MotionDetected")) { mMotionDetected = cb; return true; }
+    if (eventName.equalsIgnoreCase("MotionCleared")) { mMotionCleared = cb; return true; }
+    return Generic::SetEventCallback(eventName, cb);
+}
 
 Button::Button(String name, int16_t id, Buses bus, uint8_t address, ButtonReportModes reportmode) : Generic(name, id, bus, address), mReportMode(reportmode) {
     switch(reportmode) {
@@ -308,6 +345,26 @@ void Button::Do(ClickTypes click) {
     if (mChanged) mChanged();
 }
 
+callback_t Button::GetEventCallback(const String& eventName) {
+    if (eventName.equalsIgnoreCase("Pressed")) return mPressed;
+    if (eventName.equalsIgnoreCase("Released")) return mReleased;
+    if (eventName.equalsIgnoreCase("Clicked")) return mClicked;
+    if (eventName.equalsIgnoreCase("DoubleClicked")) return mDoubleClicked;
+    if (eventName.equalsIgnoreCase("TripleClicked")) return mTripleClicked;
+    if (eventName.equalsIgnoreCase("LongClicked")) return mLongClicked;
+    return Generic::GetEventCallback(eventName);
+}
+
+bool Button::SetEventCallback(const String& eventName, callback_t cb) {
+    if (eventName.equalsIgnoreCase("Pressed")) { mPressed = cb; return true; }
+    if (eventName.equalsIgnoreCase("Released")) { mReleased = cb; return true; }
+    if (eventName.equalsIgnoreCase("Clicked")) { mClicked = cb; return true; }
+    if (eventName.equalsIgnoreCase("DoubleClicked")) { mDoubleClicked = cb; return true; }
+    if (eventName.equalsIgnoreCase("TripleClicked")) { mTripleClicked = cb; return true; }
+    if (eventName.equalsIgnoreCase("LongClicked")) { mLongClicked = cb; return true; }
+    return Generic::SetEventCallback(eventName, cb);
+}
+
 Blinds::Blinds(String name, int16_t id, Relay* relayup, Relay* relaydown) : Generic(name, id, BUS_GROUP, 0), mRelayUp(relayup), mRelayDown(relaydown), mCurrentPosition(0), mTargetPosition(0) {
     Event.insert({
         {"Closed",[&](callback_t callback) { mClosed = callback; }},
@@ -403,6 +460,22 @@ void Blinds::Control() {
     
     mTimerUp->Control();
     mTimerDown->Control();
+}
+
+callback_t Blinds::GetEventCallback(const String& eventName) {
+    if (eventName.equalsIgnoreCase("Closed")) return mClosed;
+    if (eventName.equalsIgnoreCase("Opened")) return mOpened;
+    if (eventName.equalsIgnoreCase("BeforeClose")) return mBeforeClose;
+    if (eventName.equalsIgnoreCase("BeforeOpen")) return mBeforeOpen;
+    return Generic::GetEventCallback(eventName);
+}
+
+bool Blinds::SetEventCallback(const String& eventName, callback_t cb) {
+    if (eventName.equalsIgnoreCase("Closed")) { mClosed = cb; return true; }
+    if (eventName.equalsIgnoreCase("Opened")) { mOpened = cb; return true; }
+    if (eventName.equalsIgnoreCase("BeforeClose")) { mBeforeClose = cb; return true; }
+    if (eventName.equalsIgnoreCase("BeforeOpen")) { mBeforeOpen = cb; return true; }
+    return Generic::SetEventCallback(eventName, cb);
 }
 
 Thermometer::Thermometer(String name, int16_t id, Buses bus, uint8_t address, ThermometerTypes type) : Generic(name, id, bus, address), mType(type) {
@@ -501,6 +574,18 @@ Thermometer::Thermometer(String name, int16_t id, Buses bus, uint8_t address, Th
     Updater_Timer->Start();
 }
 
+callback_t Thermometer::GetEventCallback(const String& eventName) {
+    if (eventName.equalsIgnoreCase("TemperatureChanged")) return mTemperatureChanged;
+    if (eventName.equalsIgnoreCase("HumidityChanged")) return mHumidityChanged;
+    return Generic::GetEventCallback(eventName);
+}
+
+bool Thermometer::SetEventCallback(const String& eventName, callback_t cb) {
+    if (eventName.equalsIgnoreCase("TemperatureChanged")) { mTemperatureChanged = cb; return true; }
+    if (eventName.equalsIgnoreCase("HumidityChanged")) { mHumidityChanged = cb; return true; }
+    return Generic::SetEventCallback(eventName, cb);
+}
+
 Currentmeter::Currentmeter(String name, int16_t id, Buses bus, uint8_t address) : Generic(name, id, bus, address) {
     Event.insert({
         {"CurrentACChanged",[&](callback_t callback) { mCurrentACChanged = callback; }},
@@ -561,6 +646,18 @@ void Currentmeter::CalibrateZero(uint16_t samples) {
     mAutoCalibrated = true;
 }
 
+callback_t Currentmeter::GetEventCallback(const String& eventName) {
+    if (eventName.equalsIgnoreCase("CurrentACChanged")) return mCurrentACChanged;
+    if (eventName.equalsIgnoreCase("CurrentDCChanged")) return mCurrentDCChanged;
+    return Generic::GetEventCallback(eventName);
+}
+
+bool Currentmeter::SetEventCallback(const String& eventName, callback_t cb) {
+    if (eventName.equalsIgnoreCase("CurrentACChanged")) { mCurrentACChanged = cb; return true; }
+    if (eventName.equalsIgnoreCase("CurrentDCChanged")) { mCurrentDCChanged = cb; return true; }
+    return Generic::SetEventCallback(eventName, cb);
+}
+
 Doorbell::Doorbell(String name, int16_t id, Buses bus, uint8_t address) : Button(name, id, bus, address, ButtonReportModes::BUTTONREPORTMODE_CLICKSONLY) {
     Event.insert({
         {"Ring", [&](callback_t callback) { mRing = callback; }},
@@ -587,6 +684,24 @@ Doorbell::Doorbell(String name, int16_t id, Buses bus, uint8_t address) : Button
         mLastEventMs = millis();
         if (mLongRing) mLongRing();
     });
+}
+
+callback_t Doorbell::GetEventCallback(const String& eventName) {
+    if (eventName.equalsIgnoreCase("Ring")) return mRing;
+    if (eventName.equalsIgnoreCase("DoubleRing")) return mDoubleRing;
+    if (eventName.equalsIgnoreCase("LongRing")) return mLongRing;
+    if (eventName.equalsIgnoreCase("BrightnessChanged")) return mBrightnessChanged;
+    if (eventName.equalsIgnoreCase("VolumeChanged")) return mVolumeChanged;
+    return Button::GetEventCallback(eventName);
+}
+
+bool Doorbell::SetEventCallback(const String& eventName, callback_t cb) {
+    if (eventName.equalsIgnoreCase("Ring")) { mRing = cb; return true; }
+    if (eventName.equalsIgnoreCase("DoubleRing")) { mDoubleRing = cb; return true; }
+    if (eventName.equalsIgnoreCase("LongRing")) { mLongRing = cb; return true; }
+    if (eventName.equalsIgnoreCase("BrightnessChanged")) { mBrightnessChanged = cb; return true; }
+    if (eventName.equalsIgnoreCase("VolumeChanged")) { mVolumeChanged = cb; return true; }
+    return Button::SetEventCallback(eventName, cb);
 }
 
 ContactSensor::ContactSensor(String name, int16_t id, Buses bus, uint8_t address, bool invertClosed) : Button(name, id, bus, address, ButtonReportModes::BUTTONREPORTMODE_EDGESONLY), mInvertClosed(invertClosed) {
@@ -616,4 +731,16 @@ ContactSensor::ContactSensor(String name, int16_t id, Buses bus, uint8_t address
         }
         if (mChanged) mChanged();
     });
+}
+
+callback_t ContactSensor::GetEventCallback(const String& eventName) {
+    if (eventName.equalsIgnoreCase("Opened")) return mOpened;
+    if (eventName.equalsIgnoreCase("Closed")) return mClosed;
+    return Button::GetEventCallback(eventName);
+}
+
+bool ContactSensor::SetEventCallback(const String& eventName, callback_t cb) {
+    if (eventName.equalsIgnoreCase("Opened")) { mOpened = cb; return true; }
+    if (eventName.equalsIgnoreCase("Closed")) { mClosed = cb; return true; }
+    return Button::SetEventCallback(eventName, cb);
 }

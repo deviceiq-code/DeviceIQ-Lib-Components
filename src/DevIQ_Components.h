@@ -136,6 +136,9 @@ namespace DeviceIQ_Components {
 
             template <typename T>
             T* as() { return static_cast<T*>(this); }
+
+            virtual callback_t GetEventCallback(const String& eventName);
+            virtual bool SetEventCallback(const String& eventName, callback_t cb);
     };
 
     class Relay : public Generic {
@@ -153,6 +156,9 @@ namespace DeviceIQ_Components {
             inline const bool State() { return (mType == RELAYTYPE_NORMALLYOPENED ? !mState : mState); }
             const void State(bool newstate, bool savestate = true);
             inline bool operator==(Relay& rhs) { return (this == &rhs); }
+
+            virtual callback_t GetEventCallback(const String& eventName) override;
+            virtual bool SetEventCallback(const String& eventName, callback_t cb) override;
     };
 
     class PIR : public Generic {
@@ -171,6 +177,9 @@ namespace DeviceIQ_Components {
             inline void DebounceTime(uint32_t ms) { mDebounceTimeMs = ms; }
             
             void Control() override;
+
+            virtual callback_t GetEventCallback(const String& eventName) override;
+            virtual bool SetEventCallback(const String& eventName, callback_t cb) override;
     };
 
     class Button : public Generic {
@@ -211,6 +220,9 @@ namespace DeviceIQ_Components {
             inline bool operator==(Button& rhs) { return (this == &rhs); }
             inline const bool State() { return IsPressed(); }
             void Control() override;
+
+            virtual callback_t GetEventCallback(const String& eventName) override;
+            virtual bool SetEventCallback(const String& eventName, callback_t cb) override;
     };
 
     class Blinds : public Generic {
@@ -246,6 +258,9 @@ namespace DeviceIQ_Components {
             void Control() override;
 
             inline bool IsVirtual() const override { return true; }
+
+            virtual callback_t GetEventCallback(const String& eventName) override;
+            virtual bool SetEventCallback(const String& eventName, callback_t cb) override;
     };
 
     class Thermometer : public Generic {
@@ -284,6 +299,9 @@ namespace DeviceIQ_Components {
             inline void Control() override { if (!mEnabled) return; Updater_Timer->Control(); }
             inline void TemperatureThreshold(float v) { mTemperatureThreshold = v; }
             inline float TemperatureThreshold() const { return mTemperatureThreshold; }
+
+            virtual callback_t GetEventCallback(const String& eventName) override;
+            virtual bool SetEventCallback(const String& eventName, callback_t cb) override;
     };
 
     class Currentmeter : public Generic {
@@ -320,6 +338,9 @@ namespace DeviceIQ_Components {
             inline void ThresholdDC(float v) { mThresholdDC = v; }
             inline float ThresholdAC() const { return mThresholdAC; }
             inline float ThresholdDC() const { return mThresholdDC; }
+
+            virtual callback_t GetEventCallback(const String& eventName) override;
+            virtual bool SetEventCallback(const String& eventName, callback_t cb) override;
     };
 
     class Doorbell : public Button {
@@ -341,6 +362,9 @@ namespace DeviceIQ_Components {
             inline uint8_t State() { if (mState != 0 && (millis() - mLastEventMs) >= mTimeoutMs) mState = 0; return mState; }
             inline void Timeout(uint32_t ms) { mTimeoutMs = ms; }
             inline uint32_t Timeout() { return mTimeoutMs; }
+
+            virtual callback_t GetEventCallback(const String& eventName) override;
+            virtual bool SetEventCallback(const String& eventName, callback_t cb) override;
     };
 
     class ContactSensor : public Button {
@@ -355,6 +379,9 @@ namespace DeviceIQ_Components {
             inline bool IsClosed() { return State(); }
             inline bool IsOpen()   { return !State(); }
             inline void InvertClosed(bool v) { mInvertClosed = v; }
+
+            virtual callback_t GetEventCallback(const String& eventName) override;
+            virtual bool SetEventCallback(const String& eventName, callback_t cb) override;
     };
 
     class Collection {
