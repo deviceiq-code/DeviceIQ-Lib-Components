@@ -381,7 +381,10 @@ Blinds::Blinds(String name, int16_t id, Relay* relayup, Relay* relaydown) : Gene
             mTimerUp->Stop();
             mRelayUp->State(false);
             mRelayDown->State(false);
+
+            mTargetPosition = mCurrentPosition;
             mState = BLINDSSTATE_STOPPED;
+
             if (mChanged) mChanged();
         } else {
             if (mCurrentPosition < mTargetPosition) {
@@ -401,7 +404,10 @@ Blinds::Blinds(String name, int16_t id, Relay* relayup, Relay* relaydown) : Gene
             mTimerDown->Stop();
             mRelayUp->State(false);
             mRelayDown->State(false);
+
+            mTargetPosition = mCurrentPosition;
             mState = BLINDSSTATE_STOPPED;
+
             if (mChanged) mChanged();
         } else {
             if (mCurrentPosition > mTargetPosition) {
@@ -442,6 +448,13 @@ void Blinds::Position(uint8_t value, bool setformerposition) {
         mRelayDown->State(false, false);
         mTimerUp->Stop();
         mTimerDown->Stop();
+
+        mTargetPosition = mCurrentPosition;
+        mState = BLINDSSTATE_STOPPED;
+
+        if (mChanged) mChanged();
+
+        if (value == mCurrentPosition) return;
     }
 
     if (value > mCurrentPosition) {

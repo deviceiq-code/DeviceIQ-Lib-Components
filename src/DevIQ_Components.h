@@ -58,9 +58,9 @@ namespace DeviceIQ_Components {
     };
 
     enum BlindsStates { 
-        BLINDSSTATE_STOPPED,
-        BLINDSSTATE_INCREASING,
-        BLINDSSTATE_DECREASING
+        BLINDSSTATE_STOPPED = 2,
+        BLINDSSTATE_INCREASING = 0,
+        BLINDSSTATE_DECREASING = 1
     };
 
     enum TemperatureScales { 
@@ -248,9 +248,14 @@ namespace DeviceIQ_Components {
             inline Classes Class() const override { return CLASS_BLINDS; }
             void Position(uint8_t value, bool setformerposition = false);
             inline uint8_t Position() { return mCurrentPosition; }
+            inline uint8_t CurrentPosition() { return mCurrentPosition; }
+            inline uint8_t TargetPosition() { return mTargetPosition; }
             inline BlindsStates State() { return mState; }
+            inline uint8_t PositionState() { return static_cast<uint8_t>(mState); }
+            inline String PositionStateName() { return StateToString(mState); }
             inline void Open() { Position(100); }
             inline void Close() { Position(0); }
+            inline void Stop() { Position(mCurrentPosition); }
             inline void StepMs(uint16_t value) { mStepMs = value; mTimerUp->SetTimeout(mStepMs); mTimerDown->SetTimeout(mStepMs); }
             inline uint16_t StepMs() { return mStepMs; }
             inline void CancelAction() { mCancel = true; }
